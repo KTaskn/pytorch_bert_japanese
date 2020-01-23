@@ -1,9 +1,20 @@
 from pathlib import Path
+import argparse
 
 import numpy as np
 import torch
 from pytorch_pretrained_bert import BertTokenizer, BertModel
 from pyknp import Juman
+
+def parse_argument():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--csv_path", default=None, type=str,
+                        help="input csv")
+    parser.add_argument("--bert_path", default=None, type=str,
+                        help="bert path")
+
+    args = parser.parse_args()
+    return args
 
 
 class JumanTokenizer():
@@ -56,17 +67,29 @@ class BertWithJumanModel():
             # id列からベクトル表現を計算する
             all_encoder_layers, _ = self.model(tokens_tensor)
 
-        # SWEMと同じ方法でベクトルを時間方向にaverage-poolingしているらしい
-        # 文章列によって次元が可変になってしまうので、伸びていく方向に対してプーリングを行い次元を固定化する
-        # https://yag-ays.github.io/project/swem/
-        embedding = all_encoder_layers[pooling_layer].cpu().numpy()[0]
-        if pooling_strategy == "REDUCE_MEAN":
-            return np.mean(embedding, axis=0)
-        elif pooling_strategy == "REDUCE_MAX":
-            return np.max(embedding, axis=0)
-        elif pooling_strategy == "REDUCE_MEAN_MAX":
-            return np.r_[np.max(embedding, axis=0), np.mean(embedding, axis=0)]
-        elif pooling_strategy == "CLS_TOKEN":
-            return embedding[0]
-        else:
-            raise ValueError("specify valid pooling_strategy: {REDUCE_MEAN, REDUCE_MAX, REDUCE_MEAN_MAX, CLS_TOKEN}")
+            # SWEMと同じ方法でベクトルを時間方向にaverage-poolingしているらしい
+            # 文章列によって次元が可変になってしまうので、伸びていく方向に対してプーリングを行い次元を固定化する
+            # https://yag-ays.github.io/project/swem/
+            embedding = all_encoder_layers[pooling_layer].cpu().numpy()[0]
+            if pooling_strategy == "REDUCE_MEAN":
+                return np.mean(embedding, axis=0)
+            elif pooling_strategy == "REDUCE_MAX":
+                return np.max(embedding, axis=0)
+            elif pooling_strategy == "REDUCE_MEAN_MAX":
+                return np.r_[np.max(embedding, axis=0), np.mean(embedding, axis=0)]
+            elif pooling_strategy == "CLS_TOKEN":
+                return embedding[0]
+            else:
+                raise ValueError("specify valid pooling_strategy: {REDUCE_MEAN, REDUCE_MAX, REDUCE_MEAN_MAX, CLS_TOKEN}")
+
+if __name__ == '__main__':
+    import pandas as pd
+    args = parse_argument()
+    bwjm = BertWithJumanModel(
+        bert_path=args.bert_path
+    )
+    df = pd.read_csv(
+        args.csv_path
+    )
+    for row in df['detail'].tolist():
+        print('\t'.join(map(str, bwjm.get_sentence_embedding(row))))
