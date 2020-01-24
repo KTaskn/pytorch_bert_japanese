@@ -41,7 +41,10 @@ class BertWithJumanModel():
 
     def _preprocess_text(self, text):
         # 事前処理、テキストの半角スペースは削除
-        return text.replace(" ", "")  # for Juman
+        try:
+            return text.replace(" ", "")  # for Juman
+        except:
+            return ''
 
     def get_sentence_embedding(self, text, pooling_layer=-2, pooling_strategy="REDUCE_MEAN"):
         # テキストの半角スペースを削除する
